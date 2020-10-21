@@ -19,8 +19,11 @@ library(tidyverse)
 ```
 
 #System Schematic
-```{r}
 
+Exploring a open, steady-state model of $\delta^{18}O_{min}$ of precipitated calcite within shallow wetland environments, i.e palustrine carbonates. 
+
+```{r out.width = "100%", echo=FALSE, eval=TRUE}
+knitr::include_graphics("x.png") 
 ```
 
 #System Explanation
