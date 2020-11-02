@@ -17,6 +17,8 @@ editor_options:
 #install once, uncomment to update
 #devtools::install_github("KopfLab/microbialkitchen")
 #devtools::install_github("Kopflab/isocyclr")
+#install.packages("vctrs")
+#packageVersion("vctrs")
 ```
 
 ```{r "setup", warning=FALSE, message=FALSE}
@@ -36,8 +38,6 @@ library(RDocumentation)
 5. run model scenario #2 and compare
 6. make system not an steady state. run model scenario #1 again
 
-
-
 #System Schematic
 
 We will explore an open, steady-state model of $\delta^{18}O$ of carboante speciation and the resulting calcite ($CaCO_3$) that precipiates out of the aqueous solution.First, we will examine the cascade of deprotonation reactions that generate an evolving balance of carbonate speciation. 
@@ -49,20 +49,23 @@ Step 1: $CO_2$ dissolves into water to create carbonic acid, $H_2CO_3$
   
 Step 2: 
 ```{r calc DIC species}
+parameters <- tibble(
+        temps = c(15, 25, 35), 
+        pCO2 = c(280, 1500, 800)
+                      )
+
+# range of temperature
+temps <- tibble(
+  temps = qty(c(15, 25, 35), "C")
+        )
 
 # Step 1: set range of pCO2 levels for 2 scenarios. 
     #1) pre-industrial modern pCO2 levels: 280 ppm (2.8E-4 atm, 0.284 mbar)
     #2) "greenhouse climate state" of interest 
           #opt 1: Cretaceous Aptian/Albian transition (113 Ma): ~1500 ppm (1.5E-3 tm, 1.5 mbar) (Huber et al., 2018)
           #opt 2: PETM, 800 ppm (8E-4 atm, 0.811 mbar), but note that estimate range from 650 to 3500 ppm (Carmichael et al., 2016)
-
 pCO2s <- tibble(
   pCO2 = qty(c(280, 1500, 800, "mbar"))
-)
-
-# range of temperature
-temps <- tibble(
-  temps = qty(c(0, 40, by = 1), "C")
 )
 
 # calculate for all combinations
