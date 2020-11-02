@@ -28,6 +28,7 @@ library(isoreader)
 library(isocyclr)
 library(microbialkitchen)
 library(RDocumentation)
+library(vctrs)
 ```
 
 # Road Map 
@@ -49,33 +50,51 @@ Step 1: $CO_2$ dissolves into water to create carbonic acid, $H_2CO_3$
   
 Step 2: 
 ```{r calc DIC species}
-parameters <- tibble(
-        temps = c(15, 25, 35), 
-        pCO2 = c(280, 1500, 800)
-                      )
-
-# range of temperature
+# Temperature range
 temps <- tibble(
-  temps = qty(c(15, 25, 35), "C")
-        )
+           temps = qty(c(15, 25, 35), "C")
+               )
+
+# Set pH 
+pH = seq(4, 12, by= 1)#qty(c(7), "M")
+            
 
 # Step 1: set range of pCO2 levels for 2 scenarios. 
     #1) pre-industrial modern pCO2 levels: 280 ppm (2.8E-4 atm, 0.284 mbar)
     #2) "greenhouse climate state" of interest 
           #opt 1: Cretaceous Aptian/Albian transition (113 Ma): ~1500 ppm (1.5E-3 tm, 1.5 mbar) (Huber et al., 2018)
           #opt 2: PETM, 800 ppm (8E-4 atm, 0.811 mbar), but note that estimate range from 650 to 3500 ppm (Carmichael et al., 2016)
+            #https://paleo-co2.org/
 pCO2s <- tibble(
-  pCO2 = qty(c(280, 1500, 800, "mbar"))
-)
+  pCO2 = qty(c(280, 1500, 800), "mbar")
+                )
 
 # calculate for all combinations
 df_pH_vs_pCO2 <-
   crossing(pCO2s, temps) %>%
   mutate(
-    pH = calculate_open_system_pH(pCO2, temp = temp),
-    DIC = calculate_DIC(pH, pCO2, temp = temp),
-    CO2 = calculate_ideal_gas_molarity(pCO2, temp = temp)
+    pH = pH, #calculate_open_system_pH(pCO2, temp = temps),
+    DIC = calculate_DIC(pH, pCO2, temp = temps),
+    CO2 = calculate_ideal_gas_molarity(pCO2, temp = temps)
   )
+
+df_pH_vs_pCO2 %>%
+  # pivoting longer mixed data types requires explicit units first
+    make_qty_units_explicit(DIC = "mM", CO2 = "mM") %>%
+    pivot_longer(
+      cols = c(pH, `DIC [mM]`, `CO2 [mM]`), 
+      names_to = "var", values_to = "value"
+    ) %>%
+  #filter(!(var == "pH" )) %>%
+  mutate(temperature = as_factor(temps, unit = "C")) %>%
+  ggplot() +
+      aes(pCO2, value, color = temperature) +
+  geom_line() +
+      scale_x_qty(expand = c(0, 0)) +
+  facet_grid(var~., scales = "free_y") +
+    expand_limits(x = 0) +
+  theme_bw() + 
+      labs(y = NULL)
 ```
 
 
