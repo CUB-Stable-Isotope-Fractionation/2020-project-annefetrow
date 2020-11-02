@@ -15,27 +15,71 @@ editor_options:
 
 ```{r install}
 #install once, uncomment to update
-devtools::install_github("KopfLab/microbialkitchen")
-devtools::install_github("Kopflab/isocyclr")
+#devtools::install_github("KopfLab/microbialkitchen")
+#devtools::install_github("Kopflab/isocyclr")
 ```
-
 
 ```{r "setup", warning=FALSE, message=FALSE}
 # load libraries
 library(tidyverse)
 library(isoreader)
 library(isocyclr)
+library(microbialkitchen)
+library(RDocumentation)
 ```
+
+# Road Map 
+1. system schematic
+2. system equations
+3. calc and plot DIC species for open system
+4. run model scenario #1 with calcualted DIC species 
+5. run model scenario #2 and compare
+6. make system not an steady state. run model scenario #1 again
+
+
 
 #System Schematic
 
-Exploring a open, steady-state model of $\delta^{18}O_{min}$ of precipitated calcite within an aqueous solution. 
-
+We will explore an open, steady-state model of $\delta^{18}O$ of carboante speciation and the resulting calcite ($CaCO_3$) that precipiates out of the aqueous solution.First, we will examine the cascade of deprotonation reactions that generate an evolving balance of carbonate speciation. 
 ```{r out.width = "100%", echo=FALSE, eval=TRUE}
-#knitr::include_graphics("Palustrine Box Model Schematic_notext_2.png") 
+knitr::include_graphics("co2_open_speciation.png")  #
+```
+Step 1: $CO_2$ dissolves into water to create carbonic acid, $H_2CO_3$
+  In an ppen system, the supply of $CO_2$ is considered "constant" because the reservior size of $CO_2$ in the atmosphere is so much larger than the reservior size of the dissolved $CO_2$ species. This is show with the constant green line above... regardless of pH and the speciation of the rest of the carbonate sequence, the $CO_2$ concentration remains the same. 
+  
+Step 2: 
+```{r calc DIC species}
+
+# Step 1: set range of pCO2 levels for 2 scenarios. 
+    #1) pre-industrial modern pCO2 levels: 280 ppm (2.8E-4 atm, 0.284 mbar)
+    #2) "greenhouse climate state" of interest 
+          #opt 1: Cretaceous Aptian/Albian transition (113 Ma): ~1500 ppm (1.5E-3 tm, 1.5 mbar) (Huber et al., 2018)
+          #opt 2: PETM, 800 ppm (8E-4 atm, 0.811 mbar), but note that estimate range from 650 to 3500 ppm (Carmichael et al., 2016)
+
+pCO2s <- tibble(
+  pCO2 = qty(c(280, 1500, 800, "mbar"))
+)
+
+# range of temperature
+temps <- tibble(
+  temps = qty(c(0, 40, by = 1), "C")
+)
+
+# calculate for all combinations
+df_pH_vs_pCO2 <-
+  crossing(pCO2s, temps) %>%
+  mutate(
+    pH = calculate_open_system_pH(pCO2, temp = temp),
+    DIC = calculate_DIC(pH, pCO2, temp = temp),
+    CO2 = calculate_ideal_gas_molarity(pCO2, temp = temp)
+  )
 ```
 
+
 #System Explanation
+
+Second, let's set up a simplistic model to follow oxygen through a open, steady state system. There is one input flux, $CO_2$, diffusing into the water. The 3 aqueous carbonate species are the three internal nodes of the system. There is one output flux, $CaCO_3$. 
+
 ```{r}
 
 O_isopath <- isopath() %>% 
@@ -62,10 +106,9 @@ O_isopath %>% generate_reaction_diagram() + coord_equal()
 O_isopath %>% get_ode_matrix() %>% knitr::kable()
 ```
 
-
 ```{r out.width = "100%", echo=FALSE, eval=TRUE}
+knitr::include_graphics("co2_open_speciation.png")  #
 knitr::include_graphics("fractfactor_carbspeciesbyT_Zeebe.png") 
-knitr::include_graphics("co2_open_speciation.png") 
 ```
 
 #Assign Parameters
@@ -78,12 +121,17 @@ O_isopath <- O_isopath %>%
                     # define flux values and fractions
                       atmo = c(280, 2800), 
                       f4 = 0.1, 
+                    # calc DIC species
+                      calculate_DIC(
+                        pH = 8, #adjust pH to system
+                        pCO2 = c(280, 2800) #two pCO2 scenarios
+                        ),
                     # isotopic effects - temperature dependent
                       T.C = 25,
                       T.K = T.C + 273.15,
                       e1 = (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)
                       e2 = (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3
-                      e3 = (1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3     #(1/0.99318 - 1)*1000, # alpha(carb/bicarb)= 0.99318, Beck et al. 2015 
+                      e3 = (1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3     #(1/0.99318 - 1)*1000, alpha(carb/bicarb)= 0.99318, Beck et al. 2015 
                       e4 = (1 / 1.00542 - 1) * 1000, # alpha(calcite/carb)= 1.00542, Beck et al. 2015
                     # define starting isotopic compositions
                       atmo.oxygen = 0, #atmoCO2 (pre-industrial) = 0permil. 
