@@ -45,18 +45,136 @@ We will explore an open, steady-state model of $\delta^{18}O$ of carboante speci
 ```{r out.width = "100%", echo=FALSE, eval=TRUE}
 knitr::include_graphics("co2_open_speciation.png")  #
 ```
-Step 1: $CO_2$ dissolves into water to create carbonic acid, $H_2CO_3$
-  In an ppen system, the supply of $CO_2$ is considered "constant" because the reservior size of $CO_2$ in the atmosphere is so much larger than the reservior size of the dissolved $CO_2$ species. This is show with the constant green line above... regardless of pH and the speciation of the rest of the carbonate sequence, the $CO_2$ concentration remains the same. 
+#System Explanation
+
+$CO_2$ dissolves into water to create carbonic acid, $H_2CO_3$
+  In an ppen system, the supply of $CO_2$ is considered "constant" because the reservior size of $CO_2$ in the atmosphere is so much larger than the reservior size of the dissolved $CO_2$ species. This is show with the constant green line above... regardless of pH and the speciation of the rest of the carbonate sequence, the $CO_2$ concentration remains the same.
   
-Step 2: 
-```{r calc DIC species}
+Let's set up a simplistic model to follow oxygen through a open, steady state system. There is one input flux, $CO_2$, diffusing into the water. The 3 aqueous carbonate species are the three internal nodes of the system. There is one output flux, $CaCO_3$. 
+
+Q: In the below model, which reactions are assumed to fractionate oxygen isotopes and which are assumed not to fractionate?
+  A: Reactions between atmospheric $CO_{2(g)}$ to $H_2CO_{3(aq)}$, and between $CO_{2(aq)}$ and $CaCO_3$ have fractionation factors in this model. 
+
+```{r}
+O_isopath <- isopath() %>% 
+              add_isotope("oxygen") %>% 
+                add_component("gas", oxygen, variable = FALSE) %>% #Atmospheric CO2 in flux
+                add_component("CA", oxygen) %>% #carbonic acid node
+                add_component("bicarb", oxygen) %>% #bicarbonate anion node
+                add_component("carb", oxygen) %>% #carboante anion node
+                add_component("calcite", oxygen) %>% #calcite mineral node
+                add_component("calcite_out", oxygen, variable = FALSE) %>% #out flux, mineral precipitation 
+                  add_standard_reaction(gas == CA, eps.oxygen = e1, flux = atmo, name = "gas in") %>% 
+                  add_standard_reaction(CA == bicarb, eps.oxygen = 0, flux = f2 * atmo) %>% 
+                  add_standard_reaction(bicarb == carb, eps.oxygen = 0, flux = f3 *atmo) %>% 
+                  add_standard_reaction(carb == calcite, eps.oxygen = e4, flux = f4 * atmo) %>%
+                  add_standard_reaction(calcite == calcite_out, eps.oxygen = 0, flux = f4 * atmo, name = "min out")
+```
+
+#### Schematic
+```{r rxn_diagram, fig.width = 8, fig.height = 5}
+O_isopath %>% generate_reaction_diagram() + coord_equal()
+```
+
+#### System of differential equations
+
+#Model Equation
+$$
+\frac{d(\delta^{18}O)} {dt} = \sum_{in} {\big( \delta^{18}O_{in} + \epsilon_{in \rightarrow aq} \big)\phi_{in \rightarrow aq} - \sum_{out} {\big( \delta^{18}O_{out} + \epsilon_{aq \rightarrow out} \phi_{aq \rightarrow out}  \\
+
+\frac{\delta^{18}O_{carb}} {dt} = \\
+$$
+
+
+```{r}
+O_isopath %>% get_ode_matrix() %>% knitr::kable()
+```
+
+```{r out.width = "25%", echo=FALSE, eval=TRUE}
+knitr::include_graphics("co2_open_speciation.png")  #
+knitr::include_graphics("fractfactor_carbspeciesbyT_Zeebe.png") 
+```
+
+#Knobs: Assign Parameters
+```{r}
+O_isopath <- O_isopath %>% 
+                  set_parameters(
+                    tibble(
+                    # define three scenarios to model
+                      scenario = c("pre-indust", "113 Ma", "55 Ma"),  #modeling pre-industrial pCO2, Creteceous'greenhouse' climate pCO2, and PETM
+                    # define flux values and fractions
+                      atmo = c(0.284, 1.5, 0.811),  #qty(c(0.284, 1.5, 0.811), "mbar"),  
+                      f2 = 0.1,
+                      f3 = 0.1,
+                      f4 = 0.1, 
+                    # calc DIC species
+                      calculate_DIC(
+                        pH = 8, #adjust pH to system
+                        pCO2 = qty(c(280, 1500, 800), "mbar") #two pCO2 scenarios
+                        ),
+                    # isotopic effects - temperature dependent
+                      T.C = 25,
+                      T.K = T.C + 273.15,
+                      e1 = (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)
+                      e2 = (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3
+                      e3 = (1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3     #(1/0.99318 - 1)*1000, alpha(carb/bicarb)= 0.99318, Beck et al. 2015 
+                      e4 = (1 / 1.00542 - 1) * 1000, # alpha(calcite/carb)= 1.00542, Beck et al. 2015
+                    # define starting isotopic compositions
+                      gas.oxygen = 0, #atmoCO2 (pre-industrial) = 0permil. 
+                      CA.oxygen = 0 , 
+                      bicarb.oxygen = 0, 
+                      carb.oxygen = 0, 
+                      calcite.oxygen = 0 , 
+                    # define pool sizes for variable component - pH = ? open system
+                      gas = 1^-2,
+                      CA =  1 / 1^5,
+                      bicarb = 1^-0.5,
+                      carb = 1^-2.5, 
+                      calcite = 1^-3
+                    )
+                  )
+
+```
+
+## Run model
+
+Running the system of differential equations is easily done and uses the ode solvers of the **deSolve** package.
+
+```{r, warning=FALSE}
+model <- O_isopath %>% run_model(time_steps = 1000)
+```
+
+## Plot time course
+
+```{r time_course, fig.width = 8, fig.height = 6}
+model %>% 
+  pivot_longer(names_to = "reservoir", values_to = "delta", ends_with("oxygen")) %>%
+  ggplot() + aes(time, delta, color = reservoir, size = ) +
+  geom_line() + theme_bw() +
+  labs(y = expression(delta*18*'O')) +
+  facet_grid(~scenario)
+```
+## Run to steady state
+
+The model can also be run to steady-state using runsteady functionality from the *rootSolve* package. All parameters are forwarded to the ode/root solver.
+
+```{r, warning=FALSE}
+steady <- O_isopath %>% run_steady_state(stol = 1e-5, rtol = 1e-3)
+```
+
+#Exercises 
+
+
+
+#Exercise 3: 
+```{r dynamic DIC species}
 # Temperature range
 temps <- tibble(
            temps = qty(c(15, 25, 35), "C")
                )
 
 # Set pH 
-pH = seq(4, 12, by= 1)#qty(c(7), "M")
+#pH = seq(4, 12, by= 1)#qty(c(7), "M")
             
 
 # Step 1: set range of pCO2 levels for 2 scenarios. 
@@ -66,14 +184,14 @@ pH = seq(4, 12, by= 1)#qty(c(7), "M")
           #opt 2: PETM, 800 ppm (8E-4 atm, 0.811 mbar), but note that estimate range from 650 to 3500 ppm (Carmichael et al., 2016)
             #https://paleo-co2.org/
 pCO2s <- tibble(
-  pCO2 = qty(c(280, 1500, 800), "mbar")
+  pCO2 = qty(c(0.284, 1.5, 0.811), "mbar")
                 )
 
 # calculate for all combinations
 df_pH_vs_pCO2 <-
   crossing(pCO2s, temps) %>%
   mutate(
-    pH = pH, #calculate_open_system_pH(pCO2, temp = temps),
+    pH = calculate_open_system_pH(pCO2, temp = temps),
     DIC = calculate_DIC(pH, pCO2, temp = temps),
     CO2 = calculate_ideal_gas_molarity(pCO2, temp = temps)
   )
@@ -95,122 +213,13 @@ df_pH_vs_pCO2 %>%
     expand_limits(x = 0) +
   theme_bw() + 
       labs(y = NULL)
+
+#need to set up equations that take the speciation determined by pCO2 and then make that into fractions so then plug that into the model I built. 
 ```
 
-
-#System Explanation
-
-Second, let's set up a simplistic model to follow oxygen through a open, steady state system. There is one input flux, $CO_2$, diffusing into the water. The 3 aqueous carbonate species are the three internal nodes of the system. There is one output flux, $CaCO_3$. 
-
-```{r}
-
-O_isopath <- isopath() %>% 
-              add_isotope("oxygen") %>% 
-                add_component("gas", oxygen, variable = FALSE) %>% #in flux
-                add_component("CA", oxygen) %>% 
-                add_component("bicarb", oxygen) %>% 
-                add_component("carb", oxygen) %>% 
-                add_component("calcite", oxygen) %>% 
-                add_component("calcite_out", oxygen, variable = FALSE) %>% #out flux
-                  add_standard_reaction(gas == CA, eps.oxygen = e1, flux = atmo) %>% 
-                  add_standard_reaction(CA == bicarb, eps.oxygen = e2, flux = atmo) %>% 
-                  add_standard_reaction(bicarb == carb, eps.oxygen = e3, flux = atmo) %>% 
-                  add_standard_reaction(carb == calcite, eps.oxygen = e4, flux = f4 * atmo) %>%  #f4 = fraction of carbonate ion that leaves to precip mineral
-                  add_standard_reaction(calcite == calcite_out, eps.oxygen = 0, flux = f4 * atmo, name = "min out")
-```
-
-#### Schematic
-```{r rxn_diagram, fig.width = 8, fig.height = 5}
-O_isopath %>% generate_reaction_diagram() + coord_equal()
-```
-#### System of differential equations
-```{r}
-O_isopath %>% get_ode_matrix() %>% knitr::kable()
-```
-
-```{r out.width = "100%", echo=FALSE, eval=TRUE}
-knitr::include_graphics("co2_open_speciation.png")  #
-knitr::include_graphics("fractfactor_carbspeciesbyT_Zeebe.png") 
-```
-
-#Assign Parameters
-```{r}
-O_isopath <- O_isopath %>% 
-                  set_parameters(
-                    tibble(
-                    # define three scenarios to model
-                      scenario = c("low atmo", "high atmo"),  #modeling pre-industrial pCO2, a 'greenhouse' climate pCO2 
-                    # define flux values and fractions
-                      atmo = c(280, 2800), 
-                      f4 = 0.1, 
-                    # calc DIC species
-                      calculate_DIC(
-                        pH = 8, #adjust pH to system
-                        pCO2 = c(280, 2800) #two pCO2 scenarios
-                        ),
-                    # isotopic effects - temperature dependent
-                      T.C = 25,
-                      T.K = T.C + 273.15,
-                      e1 = (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)
-                      e2 = (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3
-                      e3 = (1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3     #(1/0.99318 - 1)*1000, alpha(carb/bicarb)= 0.99318, Beck et al. 2015 
-                      e4 = (1 / 1.00542 - 1) * 1000, # alpha(calcite/carb)= 1.00542, Beck et al. 2015
-                    # define starting isotopic compositions
-                      atmo.oxygen = 0, #atmoCO2 (pre-industrial) = 0permil. 
-                      CA.oxygen = 0 , 
-                      bicarb.oxygen = 0, 
-                      carb.oxygen = 0, 
-                      calcite.oxygen = 0 , 
-                    # define pool sizes for variable component - pH = ? open system
-                      atmo.pool = 1^-2,
-                      CA.pool =  1/10^5,
-                      bicarb.pool = 10^-0.5,
-                      carb.pool = 1^-2.5
-                    )
-                  )
-
-```
-
-## Run model
-
-Running the system of differential equations is easily done and uses the ode solvers of the **deSolve** package.
-
-```{r, warning=FALSE}
-model <- O_isopath %>% run_model(time_steps = 500)
-```
-
-#Knobs... i.e. parameters
-```{r}
-
-```
-
-#Model Equation
-```{r}
-
-```
-
-#Known, fixed, and dynamic parameters
-```{r}
-
-```
-
-#Exercises 
-
-#Exercise 1:
-```{r}
-
-```
-#Exercise 2:
-```{r}
-
-```
-#Exercise 3: 
-```{r}
-
-```
-#Take Aways
-
-
+# Exercise #3, Take Aways
+1) Most natural waters have pHs between 5.5 and 8.5. Our modeled system does not get above 4.3. This implies that other aqueous species must be in system to increase the pH of a system, beyond just dissolving CO2 from the atmosphere. Ex: naturally occuring bases ($NaOH$).
+2) 
 
 
 
