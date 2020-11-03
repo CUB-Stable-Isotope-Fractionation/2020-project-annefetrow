@@ -21,7 +21,7 @@ editor_options:
 #packageVersion("vctrs")
 ```
 
-```{r "setup", warning=FALSE, message=FALSE}
+```{r load libraries, warning=FALSE, message=FALSE}
 # load libraries
 library(tidyverse)
 library(isoreader)
@@ -40,16 +40,52 @@ library(vctrs)
 6. make system not an steady state. run model scenario #1 again
 
 #System Schematic
+  We will explore an open system model of $\delta^{18}O$ of carboante speciation and the resulting calcite ($CaCO_3$) that precipiates out of the aqueous solution. Below is a plot of concentrations of carbonate species vs pH. $CO_2$ dissolves into water to create carbonic acid, $H_2CO_3$. As pH increases, the deprotonation of carbonic acid generates $HCO_3^{-}$ and $CO_3^{2-}$. 
+  In an open system, the supply of $CO_2$ is considered "constant" because the reservior size of $CO_2$ in the atmosphere is much larger than the reservior size of the dissolved $CO_2$ species. This is show with the constant green line above... regardless of pH and the speciation of the rest of the carbonate sequence, the $CO_2$ concentration remains the same, and therefore, the concentration of $H_2CO_3$ is independent of pH. 
 
-We will explore an open, steady-state model of $\delta^{18}O$ of carboante speciation and the resulting calcite ($CaCO_3$) that precipiates out of the aqueous solution.First, we will examine the cascade of deprotonation reactions that generate an evolving balance of carbonate speciation. 
 ```{r out.width = "100%", echo=FALSE, eval=TRUE}
-knitr::include_graphics("co2_open_speciation.png")  #
+knitr::include_graphics("co2_open_speciation.png")
 ```
+
+```{r speciation}
+speciation <- tibble(
+                  #define equilibrium constants, pCO2, and pH
+                    K_1 = 10^-1.47, # [CO2(aq)] / pCO2 
+                    K_2 = 10^-6.35, # [HCO3 -][H+] / [CO2(aq)] ... note [CO2(aq)] assumed = to [H2CO3]
+                    K_3 = 10^-10.33, # [CO3 2-][H+] / [HCO3 -]
+                    pCO2_atm = 2.8E-4,
+                    pH = c(seq(0, 14, by = 0.5)),
+                    C_H = 10 ^ (-pH),
+                  
+                  #calculate aqueous species concentrations
+                    C_CO2_aq = K_1 * pCO2_atm ,
+                    C_HCO3_aq = K_2 * C_CO2_aq / C_H,
+                    C_CO3_aq = K_3 * C_HCO3_aq / C_H,
+                    C_DIC = C_CO2_aq + C_HCO3_aq + C_CO3_aq,
+                  
+                  #define speciation fraction terms
+                    f_CA = C_CO2_aq / DIC,
+                    f_bicarb = C_HCO3_aq / DIC,
+                    f_carb = C_CO3_aq / DIC,
+                  )
+
+p_speciation <- speciation %>% 
+                pivot_longer(
+                   cols = c(C_DIC, C_CO2_aq, C_HCO3_aq, C_CO3_aq)) %>% 
+                   #names_to = "var", values_to = "value") %>% 
+                  ggplot (aes(x = pH, y = value, color = name)) +
+                      geom_line() +
+                      #geom_line(aes(x = pH, y = C_CO2_aq)) +
+                      #geom_line(aes(x = pH, y = C_HCO3_aq)) +
+                      #geom_line(aes(x = pH, y = C_CO3_aq)) 
+                  lims(y_lim(10^-6, 10^2))
+            
+p_speciation
+```
+
+
 #System Explanation
 
-$CO_2$ dissolves into water to create carbonic acid, $H_2CO_3$
-  In an ppen system, the supply of $CO_2$ is considered "constant" because the reservior size of $CO_2$ in the atmosphere is so much larger than the reservior size of the dissolved $CO_2$ species. This is show with the constant green line above... regardless of pH and the speciation of the rest of the carbonate sequence, the $CO_2$ concentration remains the same.
-  
 Let's set up a simplistic model to follow oxygen through a open, steady state system. There is one input flux, $CO_2$, diffusing into the water. The 3 aqueous carbonate species are the three internal nodes of the system. There is one output flux, $CaCO_3$. 
 
 Q: In the below model, which reactions are assumed to fractionate oxygen isotopes and which are assumed not to fractionate?
@@ -65,8 +101,8 @@ O_isopath <- isopath() %>%
                 add_component("calcite", oxygen) %>% #calcite mineral node
                 add_component("calcite_out", oxygen, variable = FALSE) %>% #out flux, mineral precipitation 
                   add_standard_reaction(gas == CA, eps.oxygen = e1, flux = atmo, name = "gas in") %>% 
-                  add_standard_reaction(CA == bicarb, eps.oxygen = 0, flux = f2 * atmo) %>% 
-                  add_standard_reaction(bicarb == carb, eps.oxygen = 0, flux = f3 *atmo) %>% 
+                  add_standard_reaction(CA == bicarb, eps.oxygen = e2, flux = f2 * atmo) %>% 
+                  add_standard_reaction(bicarb == carb, eps.oxygen = e3, flux = f3 *atmo) %>% 
                   add_standard_reaction(carb == calcite, eps.oxygen = e4, flux = f4 * atmo) %>%
                   add_standard_reaction(calcite == calcite_out, eps.oxygen = 0, flux = f4 * atmo, name = "min out")
 ```
@@ -75,16 +111,28 @@ O_isopath <- isopath() %>%
 ```{r rxn_diagram, fig.width = 8, fig.height = 5}
 O_isopath %>% generate_reaction_diagram() + coord_equal()
 ```
+#Model Assumptions
+Note: Assume instantaneous equilibration between aqueous carboante ion species. 
 
 #### System of differential equations
 
-#Model Equation
+#Basic Model Equations
 $$
-\frac{d(\delta^{18}O)} {dt} = \sum_{in} {\big( \delta^{18}O_{in} + \epsilon_{in \rightarrow aq} \big)\phi_{in \rightarrow aq} - \sum_{out} {\big( \delta^{18}O_{out} + \epsilon_{aq \rightarrow out} \phi_{aq \rightarrow out}  \\
+\text {generic} \\
+\frac{d(\delta^{18}O)} {dt} = \sum_{in} \big( \delta^{18}O_{in} + \epsilon_{in \rightarrow aq} \big) \phi_{in \rightarrow aq} - \sum_{out} \big( \delta^{18}O_{out} + \epsilon_{aq \rightarrow out} \big) \phi_{aq \rightarrow out}  \\
+\ \\
 
-\frac{\delta^{18}O_{carb}} {dt} = \\
+\text {carbonic acid} \\ 
+\frac{d(\delta^{18}O_{CA})} {dt} = \big( \delta^{18}O_{gas} + \epsilon_{gas \rightarrow CA} \big) \phi_{gas \rightarrow CA} - \big( \delta^{18}O_{bicarb} + \epsilon_{CA \rightarrow bicarb} \big) \phi_{CA \rightarrow bicarb}  \\
+\ \\
+
+\text {bicarbonate} \\
+\frac{d(\delta^{18}O_{bicarb})} {dt} = \big( \delta^{18}O_{CA} + \epsilon_{CA \rightarrow bicarb} \big) \phi_{CA \rightarrow bicarb} - \big( \delta^{18}O_{carb} + \epsilon_{bicarb \rightarrow carb} \big) \phi_{bicarb \rightarrow carb}  \\
+\ \\
+
+\text {carbonate} \\
+\frac{d(\delta^{18}O_{carb})} {dt} = \big( \delta^{18}O_{bicarb} + \epsilon_{bicarb \rightarrow carb} \big) \phi_{bicarb \rightarrow carb} - \big( \delta^{18}O_{calcite} + \epsilon_{carb \rightarrow calcite} \big) \phi_{carb \rightarrow calcite}  \\
 $$
-
 
 ```{r}
 O_isopath %>% get_ode_matrix() %>% knitr::kable()
@@ -94,6 +142,8 @@ O_isopath %>% get_ode_matrix() %>% knitr::kable()
 knitr::include_graphics("co2_open_speciation.png")  #
 knitr::include_graphics("fractfactor_carbspeciesbyT_Zeebe.png") 
 ```
+
+pCO2 = 10-3.5 atm
 
 #Knobs: Assign Parameters
 ```{r}
@@ -126,11 +176,11 @@ O_isopath <- O_isopath %>%
                       carb.oxygen = 0, 
                       calcite.oxygen = 0 , 
                     # define pool sizes for variable component - pH = ? open system
-                      gas = 1^-2,
-                      CA =  1 / 1^5,
-                      bicarb = 1^-0.5,
-                      carb = 1^-2.5, 
-                      calcite = 1^-3
+                      gas = gas.pool, #1^-2,
+                      CA =  CA.pool, #1 / 1^5,
+                      bicarb = bicarb.pool,  #1^-0.5,
+                      carb = carb.pool, #1^-2.5, 
+                      calcite = calcite.pool, #1^-3
                     )
                   )
 
@@ -141,18 +191,19 @@ O_isopath <- O_isopath %>%
 Running the system of differential equations is easily done and uses the ode solvers of the **deSolve** package.
 
 ```{r, warning=FALSE}
-model <- O_isopath %>% run_model(time_steps = 1000)
+O_model <- O_isopath %>% run_model(time_steps = 500)
 ```
 
-## Plot time course
+## Plot model through time
 
-```{r time_course, fig.width = 8, fig.height = 6}
-model %>% 
-  pivot_longer(names_to = "reservoir", values_to = "delta", ends_with("oxygen")) %>%
-  ggplot() + aes(time, delta, color = reservoir, size = ) +
+```{r through time, fig.width = 8, fig.height = 6}
+p_1 <- O_model %>% 
+          pivot_longer(names_to = "node", values_to = "delta", ends_with("oxygen")) %>%
+  ggplot() + aes(time, delta, color = node, size = ) +
   geom_line() + theme_bw() +
-  labs(y = expression(delta*18*'O')) +
+  labs(y = expression(delta^18*'O')) +
   facet_grid(~scenario)
+p_1
 ```
 ## Run to steady state
 
@@ -164,6 +215,13 @@ steady <- O_isopath %>% run_steady_state(stol = 1e-5, rtol = 1e-3)
 
 #Exercises 
 
+```{r}
+gas.pool = 1^-2
+CA.pool =  1 / 1^5
+bicarb.pool = 1^-0.5
+carb.pool = 1^-2.5
+calcite.pool = 1^-3
+```
 
 
 #Exercise 3: 
