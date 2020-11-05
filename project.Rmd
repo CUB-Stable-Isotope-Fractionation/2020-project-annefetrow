@@ -1,5 +1,5 @@
 ---
-title: "Comparing Carbon Isotopes in Open and Closed Systemss"
+title: "Carbonate Speciation and Carbon Isotopes in Open and Closed Systems"
 date: "`r format(Sys.Date(), '%d %b %Y')`"
 Author: "Anne C. Fetrow"
 output:
@@ -31,9 +31,8 @@ library(RDocumentation)
 library(vctrs)
 ```
 
-
 # System Overview: Carbonate Speciation
-  We are going to follow $\delta^{13}C$ as $CO_{2(g)}$ dissolves in water and carboante species form at equilibrium. Below is the cascade of reactions that describe the speciation of carbonate in aqueous solution. 
+  We are going to follow $\delta^{13}C$ as $CO_{2(g)}$ dissolves in water and carboante species form at equilibrium. Below are the reactions that describe the speciation of carbonate in aqueous solution. 
 
 $$
 CO_{2(g)} \rightleftharpoons CO_{2(aq)} \rightleftharpoons H^+ + HCO_{3(aq)}^{-} \rightleftharpoons H^+ + CO_{3(aq)}^{2-} \rightleftharpoons CaCO_{3(s)} \\
@@ -53,22 +52,35 @@ knitr::include_graphics("co2_open_speciation.png")
 ```
   Above is a plot of concentrations of carbonate species vs pH. $CO_2$ dissolves into water to create carbonic acid, $H_2CO_3$. As pH increases, the deprotonation of carbonic acid generates $HCO_3^{-}$ and $CO_3^{2-}$. In an open system, the supply of $CO_2$ is considered "constant" because the reservior size of $CO_2$ (green line) in the atmosphere is much much larger than the reservior size of the dissolved $CO_2$ species. Regardless of pH and the speciation of the rest of the carbonate sequence, the $CO_2$ concentration remains the same, and therefore, the concentration of $H_2CO_3$ is independent of pH. 
 
+$$
+\delta^{13}C_{CO_{2(g)}} = 0 \text{permil} \\
+\ \\
+\delta^{13}C_{CO_{2(aq)}}  = \delta^{13}C_{CO_{2(g)}} + \epsilon_{CO_{2(g)} \rightarrow CO_{2(aq)}} \\
+\ \\ 
+\delta^{13}C_{HCO_{3(g)}^-} = \delta^{13}C_{CO_{2(aq)}} + \epsilon_{CO_{2(aq)} \rightarrow {HCO_{3(aq)}^-}} \\
+\ \\
+\delta^{13}C_{CO_{3(aq)}^{2-}} = \delta^{13}C_{HCO_{3(aq)}^{-}} + \epsilon_{HCO_{3(aq)^{-}} \rightarrow CO_{3(aq)}^{2-}} \\
+$$
+
 ### Question 1
-Q: Before we attempt to model an open system at equilibrium: What parameters will we need to fix and which should we let vary?
-  A:  Fixed... temperature, pCO2
-      Variable... pH
+Q: Before we model an open system at equilibrium: What parameters will we need to fix and which should we let vary?
+  A:  
+    - Fixed...
+    - Variable...
 
 ```{r open system model}
 isotopes_open <- tibble(
-              # isotopic effects - temperature dependent
+              # define temperature
                 T.C = 25, #c(seq(0, 40, by = 5)),
                 T.K = T.C + 273.15,
+                
+              # define fractionation factors - temperarture dependent
                 e1 = (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)
-                e2 = (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3
-                e3 = (1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3
+                eps_db = (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3 . db
+                eps_cb = (1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3 . cb
                 e4 = (1 / 1.00542 - 1) * 1000, # alpha(calcite/carb)= 1.00542, Beck et al. 2015
                     
-              #define equilibrium constants, pCO2, and pH - all defined for 25C
+              #define equilibrium constants, pCO2, and pH - all for 25C
                     K_H = 10^-1.47, # [CO2(aq)] / pCO2 
                     K_1 = 10^-6.35, # [HCO3 -][H+] / [CO2(aq)] ... note [CO2(aq)] assumed = to [H2CO3]
                     K_2 = 10^-10.33, # [CO3 2-][H+] / [HCO3 -]
@@ -76,42 +88,35 @@ isotopes_open <- tibble(
                     pH = c(seq(0, 14, by = 0.1)),
                     C_H = 10 ^ (-pH),
                   
-              # calculate aqueous species concentrations
-                    C_CO2_aq = K_H * pCO2_atm ,
+              # calculate aqueous species concentrations - rearrange equilibrium constant EQs to solve for [species of interest]
+                    C_CO2_aq = K_H * pCO2_atm,
                     C_HCO3_aq = (K_1 * C_CO2_aq) / C_H,
                     C_CO3_aq = (K_2 * C_HCO3_aq) / C_H,
                     C_DIC = C_CO2_aq + C_HCO3_aq + C_CO3_aq,
               
-              # define speciation fraction terms
+              # define speciation fraction
                     f_CA = C_CO2_aq / C_DIC,
                     f_bicarb = C_HCO3_aq / C_DIC,
                     f_carb = C_CO3_aq / C_DIC,
-                      test = f_CA + f_bicarb + f_carb,
+                      f_test = f_CA + f_bicarb + f_carb,
               
               # calc isotopes for each DIC species
                 d_CO2_g = 0, #permil
-                d_CO2_aq = d_CO2_g +  (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)
-                d_HCO3_aq = d_CO2_aq +  (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3
-                d_CO3_aq = d_HCO3_aq +  (1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3
+                d_CO2_aq = d_CO2_g + (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)
+                d_HCO3_aq = d_CO2_aq + eps_db, (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3
+                d_CO3_aq = d_HCO3_aq + eps_cb, #(1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3
                 d_calcite_min = d_CO3_aq + (1 / 1.00542 - 1) * 1000, # alpha(calcite/carb)= 1.00542, Beck et al. 2015
                 d_DIC = f_CA * d_CO2_aq + f_bicarb * d_HCO3_aq + f_carb * d_CO3_aq
                   )
 ```
 
 ### Question 2 
-Q: Plot the carboante speciation for the above open system at equilibrium.  
+Q: Plot the carbonate speciation for the above open system at equilibrium.  
+  A: 
   
 ```{r plot open speciation}
-#A: Using a log scale on the y-axis, we can recreate the above plot to double check our work for the open, equilibrium system. 
 p_1 <- isotopes_open %>% 
-          pivot_longer(cols = c(C_CO2_aq, C_HCO3_aq, C_CO3_aq, C_H)) %>% 
-        ggplot() +
-            aes(x = pH, y = value, color = name) +
-          geom_line(size = 1.1) + 
-            scale_y_log10() +
-          theme_bw() + theme(text = element_text(size = 13)) +
-          scale_x_continuous(expand = c(0, 0)) +
-          labs(y = "Concentration [M]", color = NULL, title = "Speciation - Open System at Equilibrium")
+          
 p_1
 ```
 
@@ -129,26 +134,24 @@ p_2
 
 ### Question 3
 Q: What do you observe about how the isotopic values of the carboante species vary with pH? 
-  A: The isotopic composition of each species is independent from pH. The isotopic value for each species is only determined by the fractionation factor between each species which is ultimately pinned to the value of $\delta^{13}C_{pCO_2}$ , which is set by temperature, not pH. Only the $\delta^{13}C_{DIC}$ varies with pH because it is a sum of all of the isotope compositions in proportion to how much of each species exists at every pH step. 
-
-$$
-\delta_T = \sum_i{f_i \cdot \delta_i} \\
-\ \\
-\delta_{DIC} = {\delta_{CA}} \cdot [CO_{2(g)}]+ {\delta_{bicarb} \cdot [HCO_{3(aq)}}] + {\delta_{carb}} \cdot [CO_{3(aq)}]\\
-$$
+  A: 
 
 ### Question 4
 Q: What environment or natural setting does an open system model well?
-  A: Shallow aqueous environments, such as mixed lakes or wetlands, or soil environments that exchange with the atmosphere through diffusion. Open systems do assume that the solution is in constant contact with a large reservior or $CO_2$.
-
+  A: 
+  
 # Scenario 2: Closed System
 
 ## Isotopic Mass Balance
 
 $$
+\delta_T = \sum_i{f_i \cdot \delta_i} \\
+\ \\
+\delta_{DIC} = {\delta_{CA}} \cdot [CO_{2(g)}]+ {\delta_{bicarb} \cdot [HCO_{3(aq)}}] + {\delta_{carb}} \cdot [CO_{3(aq)}]\\
+\ \\
 {\delta_{HCO_{3}}} = {\delta_{DIC}} - \frac{ \epsilon_{CO_{2(aq)}/HCO_{3}} \cdot [CO_{2(g)}] + \epsilon_{CO_{3}/HCO_{3}} \cdot [CO_{3(aq)}^{2-}]} {[DIC]} ... \text{from Zeebe and Wolf-Gladrow, 2001}\\
 \ \\
-\delta_{CO_{2(aq)}} = \delta_{HCO_{3}} + \epsilon_{CO_{2(aq)}/HCO_{3}}
+\delta_{CO_{2(aq)}} = \delta_{HCO_{3}} + \epsilon_{CO_{2(aq)}/HCO_{3}} \\
 \ \\
 \delta_{CO_{3(aq)}^{2-}} = \delta_{HCO_{3}} + \epsilon_{CO_{3}/HCO_{3}} \\
 \ \\
@@ -156,23 +159,25 @@ $$
 $$
 
 ```{r fract factor figure, out.width = "75%", echo=FALSE, eval=TRUE}
-knitr::include_graphics("fractfactor_carbspeciesbyT_Zeebe.png") 
+knitr::include_graphics("fractfactor_carbspeciesbyT_Zeebe.png") #Mook 1986, C isotopes
 ```
 
 ### Question 5
-Q: Before we attempt to model an open system at equilibrium: What parameters will we need to fix and which should we let vary?
-  A:  Fixed... temperature, [DIC], $\delta_{DIC}$
-      Variable... pH
-      Note: this system does not have a pCO2 variable, but its a closed system that is not in contact with an atmosphere. There is a set concentration and isotopic value for DIC, but those quantities are finite. 
+Q: Before we model an open system at equilibrium: What parameters will we need to fix and which should we let vary?
+  A: 
+    - Fixed... 
+    - Variable... 
 
 ```{r closed system model}
 isotopes_closed <- tibble(
-              # isotopic effects - temperature dependent
+              # define temperature
                 T.C = 25, #c(seq(0, 40, by = 5)),
                 T.K = T.C + 273.15,
+                
+              # define fractionation factors - temperarture dependent
                 e1 = (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)
                 eps_db = (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3 . db
-                eps_cb = ((-867 / T.K) + 2.52) , #(1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3 . cb
+                eps_cb = (1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3 . cb 
                 e4 = (1 / 1.00542 - 1) * 1000 , # alpha(calcite/carb)= 1.00542, Beck et al. 2015
                 
               # calc speciation fractions         
@@ -245,11 +250,11 @@ p_4
 ```
 ### Question 6
 Q: What do you observe about how the isotopic values of the carboante species vary with pH? 
-  A: Now for a closed system at equilibrium, the isotopic composition of each species is dependent on pH. Each species is separated by a known fraction factor, but the $\delta^{13}C$ varies with pH because the the concentration of each species changes with pH. The $\delta^{13}C_{DIC}$, however, is now constant because the isotopic values and fraction of each species must add back to the original $\delta^{13}C_{DIC}$ composition. 
+  A: 
   
 ### Question 7
 Q: What environment or natural setting does a closed system model well?
-  A: Environment that does not have exchange with atmosphere... parsel of water starting at ocean surface and then decending away from the surface so no more exchange with the atmosphere can occur. Others? caves? soil water? interior carbonate reaction within biogenically mediated carbonate precipitation. 
+  A:  
 
 
 
