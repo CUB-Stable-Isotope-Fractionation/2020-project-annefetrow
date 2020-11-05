@@ -24,11 +24,10 @@ editor_options:
 ```{r load libraries, warning=FALSE, message=FALSE}
 # load libraries
 library(tidyverse)
-library(isoreader)
-library(isocyclr)
-library(microbialkitchen)
-library(RDocumentation)
-library(vctrs)
+#library(isoreader)
+#library(isocyclr)
+#library(microbialkitchen)
+#library(RDocumentation)
 ```
 
 # System Overview: Carbonate Speciation
@@ -49,7 +48,7 @@ $$
 # Scenario 1: Open System
 ```{r open system figure, out.width = "75%", echo=FALSE, eval=TRUE}
 knitr::include_graphics("co2_closed_open_lab_161_2nd.png")
-knitr::include_graphics("co2_open_speciation.png")
+knitr::include_graphics("co2_open_speciation.png") 
 ```
   Above is a plot of concentrations of carbonate species vs pH. $CO_2$ dissolves into water to create carbonic acid, $H_2CO_3$. As pH increases, the deprotonation of carbonic acid generates $HCO_3^{-}$ and $CO_3^{2-}$. In an open system, the supply of $CO_2$ is considered "constant" because the reservior size of $CO_2$ (green line) in the atmosphere is much much larger than the reservior size of the dissolved $CO_2$ species. Regardless of pH and the speciation of the rest of the carbonate sequence, the $CO_2$ concentration remains the same, and therefore, the concentration of $H_2CO_3$ is independent of pH. 
 
@@ -66,8 +65,8 @@ $$
 ### Question 1
 Q: Before we model an open system at equilibrium: What parameters will we need to fix and which should we let vary?
   A:  
-    - Fixed...
-    - Variable...
+    - Fixed... pCO2 (i.e. {CO2(g)}), d_CO2(g), Temperature
+    - Variable... pH, [], deltas
 
 ```{r open system model}
 isotopes_open <- tibble(
@@ -85,7 +84,7 @@ isotopes_open <- tibble(
                 K_H = 10^-1.47, # [CO2(aq)] / pCO2 
                 K_1 = 10^-6.35, # [HCO3 -][H+] / [CO2(aq)] ... note [CO2(aq)] assumed = to [H2CO3]
                 K_2 = 10^-10.33, # [CO3 2-][H+] / [HCO3 -]
-                pCO2_atm = 10^-2,
+                pCO2_atm = 10^-2, 
                 pH = c(seq(0, 14, by = 0.1)),
                 C_H = 10 ^ (-pH),
                   
@@ -118,8 +117,15 @@ Q: Plot the carbonate speciation for the above open system at equilibrium.
   
 ```{r plot open speciation}
 p_1 <- isotopes_open %>% 
-          
-p_1
+          pivot_longer(cols = c(C_CO2_aq, C_HCO3_aq, C_CO3_aq, C_H)) %>% 
+        ggplot() +
+            aes(x = pH, y = value, color = name) +
+          geom_line(size = 1.1) + 
+            scale_y_log10() +
+          theme_bw() + theme(text = element_text(size = 13)) +
+          scale_x_continuous(expand = c(0, 0)) +
+          labs(y = "Concentration [M]", color = NULL, title = "Speciation - Open System at Equilibrium")
+p_1    
 ```
 
 ```{r plot open isotopes}
@@ -130,13 +136,14 @@ p_2 <- isotopes_open %>%
       geom_line(size = 1.1) +
       theme_bw() + theme(text = element_text(size = 13)) +
       scale_x_continuous(expand = c(0, 0)) +
-      labs(y = "Concentration [M]", color = NULL, title = "Carbon Isotopes - Open System at Equilibrium")
+      labs(y = "delta 13 C", color = NULL, title = "Carbon Isotopes - Open System at Equilibrium")
 p_2
 ```
 
 ### Question 3
 Q: What do you observe about how the isotopic values of the carboante species vary with pH? 
   A: 
+    - d_DIC is the d value of 
 
 ### Question 4
 Q: What environment or natural setting does an open system model well?
@@ -251,7 +258,7 @@ p_4 <- isotopes_closed %>%
       geom_line(size = 1.1) +
       theme_bw() + theme(text = element_text(size = 13)) +
       scale_x_continuous(expand = c(0, 0)) +
-      labs(y = "Concentration [M]", color = NULL, title = "Carbon Isotopes - Closed System at Equilibrium")
+      labs(y = "d 13 C", color = NULL, title = "Carbon Isotopes - Closed System at Equilibrium")
 p_4
 ```
 ### Question 6

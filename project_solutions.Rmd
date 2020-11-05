@@ -124,7 +124,7 @@ p_1 <- isotopes_open %>%
             scale_y_log10() +
           theme_bw() + theme(text = element_text(size = 13)) +
           scale_x_continuous(expand = c(0, 0)) +
-          labs(y = "Concentration [M]", color = NULL, title = "Speciation - Open System at Equilibrium")
+          labs(y = "Concentration [M]", color = NULL, title = "Speciation - Open System at Equilibrium") 
 p_1
 ```
 
@@ -136,7 +136,7 @@ p_2 <- isotopes_open %>%
       geom_line(size = 1.1) +
       theme_bw() + theme(text = element_text(size = 13)) +
       scale_x_continuous(expand = c(0, 0)) +
-      labs(y = "Concentration [M]", color = NULL, title = "Carbon Isotopes - Open System at Equilibrium")
+      labs(y = "d 13 C", color = NULL, title = "Carbon Isotopes - Open System at Equilibrium")
 p_2
 ```
 
@@ -260,7 +260,7 @@ p_4 <- isotopes_closed %>%
       geom_line(size = 1.1) +
       theme_bw() + theme(text = element_text(size = 13)) +
       scale_x_continuous(expand = c(0, 0)) +
-      labs(y = "Concentration [M]", color = NULL, title = "Carbon Isotopes - Closed System at Equilibrium")
+      labs(y = "d 13 C", color = NULL, title = "Carbon Isotopes - Closed System at Equilibrium")
 p_4
 ```
 ### Question 6
