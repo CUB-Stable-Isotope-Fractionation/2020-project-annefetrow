@@ -81,25 +81,26 @@ isotopes_open <- tibble(
                 e4 = (1 / 1.00542 - 1) * 1000, # alpha(calcite/carb)= 1.00542, Beck et al. 2015
                     
               #define equilibrium constants, pCO2, and pH - all for 25C
-                    K_H = 10^-1.47, # [CO2(aq)] / pCO2 
-                    K_1 = 10^-6.35, # [HCO3 -][H+] / [CO2(aq)] ... note [CO2(aq)] assumed = to [H2CO3]
-                    K_2 = 10^-10.33, # [CO3 2-][H+] / [HCO3 -]
-                    pCO2_atm = 10^-2,
-                    pH = c(seq(0, 14, by = 0.1)),
-                    C_H = 10 ^ (-pH),
+                K_H = 10^-1.47, # [CO2(aq)] / pCO2 
+                K_1 = 10^-6.35, # [HCO3 -][H+] / [CO2(aq)] ... note [CO2(aq)] assumed = to [H2CO3]
+                K_2 = 10^-10.33, # [CO3 2-][H+] / [HCO3 -]
+                pCO2_atm = 10^-2,
+                pH = c(seq(0, 14, by = 0.1)),
+                C_H = 10 ^ (-pH),
                   
               # calculate aqueous species concentrations - rearrange equilibrium constant EQs to solve for [species of interest]
-                    C_CO2_aq = K_H * pCO2_atm,
-                    C_HCO3_aq = (K_1 * C_CO2_aq) / C_H,
-                    C_CO3_aq = (K_2 * C_HCO3_aq) / C_H,
-                    C_DIC = C_CO2_aq + C_HCO3_aq + C_CO3_aq,
+                C_CO2_aq = K_H * pCO2_atm,
+                C_HCO3_aq = (K_1 * C_CO2_aq) / C_H,
+                C_CO3_aq = (K_2 * C_HCO3_aq) / C_H,
+                C_DIC = C_CO2_aq + C_HCO3_aq + C_CO3_aq,
               
               # define speciation fraction
-                    f_CA = C_CO2_aq / C_DIC,
-                    f_bicarb = C_HCO3_aq / C_DIC,
-                    f_carb = C_CO3_aq / C_DIC,
-                      f_test = f_CA + f_bicarb + f_carb,
-              
+                f_CA = C_CO2_aq / C_DIC,
+                f_bicarb = C_HCO3_aq / C_DIC,
+                f_carb = C_CO3_aq / C_DIC,
+                  f_test = f_CA + f_bicarb + f_carb,
+    #do question 2
+    
               # calc isotopes for each DIC species
                 d_CO2_g = 0, #permil
                 d_CO2_aq = d_CO2_g + (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)

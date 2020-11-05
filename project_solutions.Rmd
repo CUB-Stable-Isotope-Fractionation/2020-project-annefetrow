@@ -47,8 +47,8 @@ DIC = [CO_{2(aq)}] + [HCO_3^-] + [CO_3^{2-}] \\
 $$
 
 # Scenario 1: Open System
-
 ```{r open system figure, out.width = "75%", echo=FALSE, eval=TRUE}
+knitr::include_graphics("co2_closed_open_lab_161_2nd.png")
 knitr::include_graphics("co2_open_speciation.png")
 ```
   Above is a plot of concentrations of carbonate species vs pH. $CO_2$ dissolves into water to create carbonic acid, $H_2CO_3$. As pH increases, the deprotonation of carbonic acid generates $HCO_3^{-}$ and $CO_3^{2-}$. In an open system, the supply of $CO_2$ is considered "constant" because the reservior size of $CO_2$ (green line) in the atmosphere is much much larger than the reservior size of the dissolved $CO_2$ species. Regardless of pH and the speciation of the rest of the carbonate sequence, the $CO_2$ concentration remains the same, and therefore, the concentration of $H_2CO_3$ is independent of pH. 
@@ -116,7 +116,6 @@ Q: Plot the carbonate speciation for the above open system at equilibrium.
   A: Using a log scale on the y-axis, we can recreate the above plot to double check our work for the open, equilibrium system. 
   
 ```{r plot open speciation}
-
 p_1 <- isotopes_open %>% 
           pivot_longer(cols = c(C_CO2_aq, C_HCO3_aq, C_CO3_aq, C_H)) %>% 
         ggplot() +
@@ -152,6 +151,10 @@ Q: What environment or natural setting does an open system model well?
 
 
 # Scenario 2: Closed System
+
+```{r open system figure, out.width = "75%", echo=FALSE, eval=TRUE}
+knitr::include_graphics("co2_closed_open_lab_161_2nd.png")
+```
 
 ## Isotopic Mass Balance
 
