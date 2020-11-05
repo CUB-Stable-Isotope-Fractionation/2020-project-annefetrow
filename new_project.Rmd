@@ -42,26 +42,11 @@ DIC = [H_2CO_3] + [HCO_3^-] + [CO_3^{2-}] \\
 $$
 
 
-# Isotopic Mass Balance
-$$
-\delta_T = \sum_i{f_i \cdot \delta_i} \\
-\ \\
-\delta_{DIC} = {\delta_{CA}} \cdot [CO_{2(g)}]+ {\delta_{bicarb} \cdot [HCO_{3(aq)}}] + {\delta_{carb}} \cdot [CO_{3(aq)}]\\
-\ \\
-{\delta_{HCO_{3}}} = {\delta_{DIC}} - \frac{ \epsilon_{CO_{2(aq)}/HCO_{3}} \cdot [CO_{2(g)}] + \epsilon_{CO_{3}/HCO_{3}} \cdot [CO_{3(aq)}^{2-}]} {[DIC]} ... \text{from Zeebe and Wolf-Gladrow, 2001}\\
-\ \\
-\delta_{CO_{2(aq)}} = \delta_{HCO_{3}} + \epsilon_{CO_{2(aq)}/HCO_{3}}
-\ \\
-\delta_{CO_{3(aq)}^{2-}} = \delta_{HCO_{3}} + \epsilon_{CO_{3}/HCO_{3}} \\
-\ \\
-\delta_{calcite} = \delta_{carb} + \epsilon_{carb \rightarrow calcite} \\
-\ \\
 
-$$
 
 ```{r}
 
-isotopes <- tibble(
+isotopes_open <- tibble(
               # isotopic effects - temperature dependent
                 T.C = 25, #c(seq(0, 40, by = 5)),
                 T.K = T.C + 273.15,
@@ -84,6 +69,8 @@ isotopes <- tibble(
                     C_HCO3_aq = K_2 * C_CO2_aq / C_H,
                     C_CO3_aq = K_3 * C_HCO3_aq / C_H,
                     C_DIC = C_CO2_aq + C_HCO3_aq + C_CO3_aq,
+              
+                  #s
                   
                   #define speciation fraction terms
                     f_CA = C_CO2_aq / C_DIC,
@@ -93,23 +80,102 @@ isotopes <- tibble(
               
               # calc isotopes for each DIC species
                 d_CO2_g = 0, #permil
-                d_CO2_aq = d_CO2_g + f_CA * (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)
-                d_HCO3_aq = d_CO2_aq + f_bicarb * (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3
-                d_CO3_aq = d_HCO3_aq + f_carb * (1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3
+                d_CO2_aq = d_CO2_g +  (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)
+                d_HCO3_aq = d_CO2_aq +  (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3
+                d_CO3_aq = d_HCO3_aq +  (1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3
                 d_calcite_min = d_CO3_aq + (1 / 1.00542 - 1) * 1000, # alpha(calcite/carb)= 1.00542, Beck et al. 2015
-                d_DIC = f_CA * d_CO2_aq + f_bicarb * d_HCO3_aq + f_carb * d_CO3_aq,
+                d_DIC = f_CA * d_CO2_aq + f_bicarb * d_HCO3_aq + f_carb * d_CO3_aq
               
-              
+                
                 )
+#plot speciation plot for open 
 
-isotopes %>% 
+
+isotopes_open %>% 
   pivot_longer(cols = c(d_CO2_g, d_CO2_aq, d_HCO3_aq, d_CO3_aq, d_calcite_min, d_DIC)) %>% 
     ggplot() +
       aes(x = pH, y = value, color = name) +
       geom_line()
 
+
 ```
 
+# Isotopic Mass Balance
+$$
+\delta_T = \sum_i{f_i \cdot \delta_i} \\
+\ \\
+\delta_{DIC} = {\delta_{CA}} \cdot [CO_{2(g)}]+ {\delta_{bicarb} \cdot [HCO_{3(aq)}}] + {\delta_{carb}} \cdot [CO_{3(aq)}]\\
+\ \\
+{\delta_{HCO_{3}}} = {\delta_{DIC}} - \frac{ \epsilon_{CO_{2(aq)}/HCO_{3}} \cdot [CO_{2(g)}] + \epsilon_{CO_{3}/HCO_{3}} \cdot [CO_{3(aq)}^{2-}]} {[DIC]} ... \text{from Zeebe and Wolf-Gladrow, 2001}\\
+\ \\
+\delta_{CO_{2(aq)}} = \delta_{HCO_{3}} + \epsilon_{CO_{2(aq)}/HCO_{3}}
+\ \\
+\delta_{CO_{3(aq)}^{2-}} = \delta_{HCO_{3}} + \epsilon_{CO_{3}/HCO_{3}} \\
+\ \\
+\delta_{calcite} = \delta_{carb} + \epsilon_{carb \rightarrow calcite} \\
+\ \\
+
+$$
+
+```{r}
+isotopes_closed <- tibble(
+              # isotopic effects - temperature dependent
+                T.C = 25, #c(seq(0, 40, by = 5)),
+                T.K = T.C + 273.15,
+                e1 = (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)
+                eps_db = (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3 . db
+                eps_cb = ((-867 / T.K) + 2.52) , #(1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3 . cb
+                e4 = (1 / 1.00542 - 1) * 1000 , # alpha(calcite/carb)= 1.00542, Beck et al. 2015
+                
+              # calc speciation fractions         
+                #define equilibrium constants, pCO2, and pH - all defined for 25C
+                    K_H = 10^-1.47, # [CO2(aq)] / pCO2 
+                    K_1 = 10^-6.35, # [HCO3 -][H+] / [CO2(aq)] ... note [CO2(aq)] assumed = to [H2CO3]
+                    K_2 = 10^-10.33, # [CO3 2-][H+] / [HCO3 -]
+                    #pCO2_atm = 10^-3,
+                    pH = c(seq(0, 14, by = 0.1)),
+                    C_H = 10 ^ (-pH),
+              
+              # fix DIC concentration available to system      
+                    C_DIC = 10^-2, 
+                  
+              # calculate aqueous species concentrations
+                    C_CO2_aq = (C_DIC * C_H^2) / (C_H^2 + K_1 * C_H + K_1 * K_2),
+                    C_HCO3_aq = (C_DIC * K_1 * C_H) / (C_H^2 + K_1 * C_H + K_1 * K_2),
+                    C_CO3_aq = (C_DIC * K_1 * K_2)/ (C_H^2 + K_1 * C_H + K_1 * K_2),
+                
+              # define speciation fraction terms
+                    f_CA = C_CO2_aq / C_DIC,
+                    f_bicarb = C_HCO3_aq / C_DIC,
+                    f_carb = C_CO3_aq / C_DIC,
+          
+              # # calc isotopes for each DIC species
+              #   d_CO2_g = 0, #permil
+              #   d_CO2_aq = d_CO2_g +  (1 / ((-373 / T.K) + 0.19)), # Mook (1986), CO2(g) to CO2(aq)
+              #   d_HCO3_aq = d_CO2_aq +  (-9866 / T.K + 24.12), # Mook (1986), CO2(aq) to HCO3
+              #   d_CO3_aq = d_HCO3_aq +  (1 / ((-867 / T.K) + 2.52)), #Mook (1986), HCO3 to CO3
+              #   d_calcite_min = d_CO3_aq + (1 / 1.00542 - 1) * 1000, # alpha(calcite/carb)= 1.00542, Beck et al. 2015
+              #   d_DIC = f_CA * d_CO2_aq + f_bicarb * d_HCO3_aq + f_carb * d_CO3_aq,
+              # 
+              # calc isotopes using Zeebe EQs
+              d_DIC = 0,
+              d_bicarb = d_DIC - eps_db * f_CA - eps_cb * f_carb,
+              d_CA = d_bicarb + eps_db,
+              d_carb = d_bicarb + eps_cb, 
+              d_DIC_test = f_CA * d_CA + f_bicarb * d_bicarb + f_carb * d_carb, #Activity 2
+              d_calcite_min = d_carb + (1 / 1.00542 - 1) * 1000 # alpha(calcite/carb)= 1.00542, Beck et al. 2015
+                )
+
+#plot speciation plot for closed
+
+isotopes_closed %>% 
+  pivot_longer(cols = c(d_DIC, d_bicarb, d_CA, d_carb, d_calcite_min)) %>% 
+    ggplot() +
+      aes(x = pH, y = value, color = name) +
+      geom_line()
+
+
+```
 
 
 
