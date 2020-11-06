@@ -13,48 +13,48 @@ editor_options:
   chunk_output_type: inline
 ---
 
-```{r install}
-#install once, uncomment to update
-#devtools::install_github("KopfLab/microbialkitchen")
-#devtools::install_github("Kopflab/isocyclr")
-#install.packages("vctrs")
-#packageVersion("vctrs")
-```
-
 ```{r load libraries, warning=FALSE, message=FALSE}
 # load libraries
 library(tidyverse)
-library(isoreader)
-library(isocyclr)
-library(microbialkitchen)
-library(RDocumentation)
-library(vctrs)
 ```
 
 # System Overview: Carbonate Speciation
   We are going to follow $\delta^{13}C$ as $CO_{2(g)}$ dissolves in water and carboante species form at equilibrium. Below are the reactions that describe the speciation of carbonate in aqueous solution. 
 
+### Chemical reactions
 $$
-CO_{2(g)} \rightleftharpoons CO_{2(aq)} \rightleftharpoons H^+ + HCO_{3(aq)}^{-} \rightleftharpoons H^+ + CO_{3(aq)}^{2-} \rightleftharpoons CaCO_{3(s)} \\
+CO_{2(g)} + H_2O_{l} \rightleftharpoons CO_{2(aq)} + H_2O_{l} \\
+\ \\ 
+H_2CO_{3(aq)} \rightleftharpoons H^+ + HCO_{3(aq)}^{-} \rightleftharpoons H^+ + CO_{3(aq)}^{2-} \\
 \ \\
-K_H = \frac {CO_{2(aq)}} {pCO_2} = 10^{-1.47} \text {,  at 25C} \\
-\ \\
-K_1 = \frac {[H^+] [HCO_3^-]} {[H_2CO_3]} = 10^{-6.35} \text {,  at 25C} \\
-\ \\
-K_2 = \frac {[H^+] [CO_3^{2-}]} {[HCO_3^-]} = 10^{-10.33} \text {,  at 25C} \\
+Ca^{+} + CO_{3(aq)}^{2-} \rightleftharpoons CaCO_{3(s)} \\
 \ \\
 DIC = [CO_{2(aq)}] + [HCO_3^-] + [CO_3^{2-}] \\
 $$
 
-# Scenario 1: Open System
+### Equilibrium constant equations 
+$$
+K_H = \frac {CO_{2(aq)}} {pCO_2} = 10^{-1.47} \frac {M}{atm} \text {,  at 25C} \\
+\ \\
+K_1 = \frac {[H^+] [HCO_3^-]} {[H_2CO_3]} = 10^{-6.35} \text {,  at 25C} \\
+\ \\
+K_2 = \frac {[H^+] [CO_3^{2-}]} {[HCO_3^-]} = 10^{-10.33} \text {,  at 25C} \\
+$$
+
 ```{r open system figure, out.width = "75%", echo=FALSE, eval=TRUE}
 knitr::include_graphics("co2_closed_open_lab_161_2nd.png")
+```
+  We are going to examine the difference between open and closed systems in the following exercises. The key difference to recognize between open and closed systems, illustrated in the figure above, is that the aqueous solution does not exchange with an gaseous headspace (in natural settings, the atmosphere) in a *closed* system. While an *open* system does constantly exchange with the atmosphere. We are going to look at open systems first. 
+
+# Scenario 1: Open System
+```{r open system figure, out.width = "75%", echo=FALSE, eval=TRUE}
 knitr::include_graphics("co2_open_speciation.png")
 ```
   Above is a plot of concentrations of carbonate species vs pH. $CO_2$ dissolves into water to create carbonic acid, $H_2CO_3$. As pH increases, the deprotonation of carbonic acid generates $HCO_3^{-}$ and $CO_3^{2-}$. In an open system, the supply of $CO_2$ is considered "constant" because the reservior size of $CO_2$ (green line) in the atmosphere is much much larger than the reservior size of the dissolved $CO_2$ species. Regardless of pH and the speciation of the rest of the carbonate sequence, the $CO_2$ concentration remains the same, and therefore, the concentration of $H_2CO_3$ is independent of pH. 
 
+The isotopic composition of each aqueous carbonate species can be described by the following equations. Assume permil for all equations.
 $$
-\delta^{13}C_{CO_{2(g)}} = 0 \text{permil} \\
+\delta^{13}C_{CO_{2(g)}} = 0 \\
 \ \\
 \delta^{13}C_{CO_{2(aq)}}  = \delta^{13}C_{CO_{2(g)}} + \epsilon_{CO_{2(g)} \rightarrow CO_{2(aq)}} \\
 \ \\ 
@@ -117,7 +117,7 @@ Q: Plot the carbonate speciation for the above open system at equilibrium.
   
 ```{r plot open speciation}
 p_1 <- isotopes_open %>% 
-          pivot_longer(cols = c(C_CO2_aq, C_HCO3_aq, C_CO3_aq, C_H)) %>% 
+          pivot_longer(cols = c(C_CO2_aq, C_HCO3_aq, C_CO3_aq, C_H, C_DIC)) %>% 
         ggplot() +
             aes(x = pH, y = value, color = name) +
           geom_line(size = 1.1) + 
@@ -126,6 +126,7 @@ p_1 <- isotopes_open %>%
           scale_x_continuous(expand = c(0, 0)) +
           labs(y = "Concentration [M]", color = NULL, title = "Speciation - Open System at Equilibrium") 
 p_1
+knitr::include_graphics("co2_open_speciation.png") #use plot to check speciation calculation
 ```
 
 ```{r plot open isotopes}
@@ -136,9 +137,11 @@ p_2 <- isotopes_open %>%
       geom_line(size = 1.1) +
       theme_bw() + theme(text = element_text(size = 13)) +
       scale_x_continuous(expand = c(0, 0)) +
-      labs(y = "d 13 C", color = NULL, title = "Carbon Isotopes - Open System at Equilibrium")
+      labs(y = "d13C, \U2030", color = NULL, title = "Carbon Isotopes - Open System at Equilibrium")
 p_2
 ```
+
+Note: The isotope value for calcite shown in this plot demonstrates the isotopic value of the very first crystals preciptated from the system. Since this model does not take into account the remove of C and O from the aqueous solution through crystallization of calcite (i.e. Rayleigh distalliation), we assume there is no accumulation of calcite 
 
 ### Question 3
 Q: What do you observe about how the isotopic values of the carboante species vary with pH? 
@@ -246,10 +249,7 @@ p_3 <- isotopes_closed %>%
           scale_x_continuous(expand = c(0, 0)) +
           labs(y = "Concentration [M]", color = NULL, title = "Speciation - Closed System at Equilibrium")
 p_3
-```
-
-```{r closed system figure, out.width = "65%", echo=FALSE, eval=TRUE}
-knitr::include_graphics("closedsystem_speciation.png") #from from Zeebe and Wolf-Gladrow, 2001
+knitr::include_graphics("closedsystem_speciation.png") #use as double check of speciation calculation. From from Zeebe and Wolf-Gladrow, 2001
 ```
 
 ``` {r plot closed isotopes}
@@ -260,7 +260,7 @@ p_4 <- isotopes_closed %>%
       geom_line(size = 1.1) +
       theme_bw() + theme(text = element_text(size = 13)) +
       scale_x_continuous(expand = c(0, 0)) +
-      labs(y = "d 13 C", color = NULL, title = "Carbon Isotopes - Closed System at Equilibrium")
+      labs(y = "d13C, \U2030", color = NULL, title = "Carbon Isotopes - Closed System at Equilibrium")
 p_4
 ```
 ### Question 6
@@ -270,9 +270,3 @@ Q: What do you observe about how the isotopic values of the carboante species va
 ### Question 7
 Q: What environment or natural setting does a closed system model well?
   A: Environment that does not have exchange with atmosphere... parsel of water starting at ocean surface and then decending away from the surface so no more exchange with the atmosphere can occur. Others? caves? soil water? interior carbonate reaction within biogenically mediated carbonate precipitation. 
-
-
-
-
-
-
