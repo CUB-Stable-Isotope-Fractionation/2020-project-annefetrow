@@ -41,7 +41,7 @@ K_1 = \frac {[H^+] [HCO_3^-]} {[H_2CO_3]} = 10^{-6.35} \text {,  at 25C} \\
 K_2 = \frac {[H^+] [CO_3^{2-}]} {[HCO_3^-]} = 10^{-10.33} \text {,  at 25C} \\
 $$
 
-```{r system figure, out.width = "75%", echo=FALSE, eval=TRUE}
+```{r open system figure, out.width = "75%", echo=FALSE, eval=TRUE}
 knitr::include_graphics("co2_closed_open_lab_161_2nd.png")
 ```
   We are going to examine the difference between open and closed systems in the following exercises. The key difference to recognize between open and closed systems, illustrated in the figure above, is that the aqueous solution does not exchange with an gaseous headspace (in natural settings, the atmosphere) in a *closed* system. While an *open* system does constantly exchange with the atmosphere. We are going to look at open systems first. 
@@ -66,8 +66,8 @@ $$
 ### Question 1
 Q: Before we model an open system at equilibrium: What parameters will we need to fix and which should we let vary?
   A:  
-
-
+    - Fixed... temperature, pCO2, $\delta^{13}C_{pCO_2}$. 
+    - Variable... pH
 
 ```{r open system model}
 isotopes_open <- tibble(
@@ -113,7 +113,7 @@ isotopes_open <- tibble(
 
 ### Question 2 
 Q: Plot the carbonate speciation for the above open system at equilibrium.  
-  A: 
+  A: Using a log scale on the y-axis, we can recreate the above plot to double check our work for the open, equilibrium system. 
   
 ```{r plot open speciation}
 p_1 <- isotopes_open %>% 
@@ -145,19 +145,17 @@ Note: The isotope value for calcite shown in this plot demonstrates the isotopic
 
 ### Question 3
 Q: What do you observe about how the isotopic values of the carboante species vary with pH? 
-  A: 
+  A: The isotopic composition of each species is independent from pH. The isotopic value for each species is only determined by the fractionation factor between each species which is ultimately pinned to the value of $\delta^{13}C_{pCO_2}$ , which is set by temperature, not pH. Only the $\delta^{13}C_{DIC}$ varies with pH because it is a sum of all of the isotope compositions in proportion to how much of each species exists at every pH step. 
 
 ### Question 4
 Q: What environment or natural setting does an open system model well?
-  A: 
-  
-
+  A: Shallow aqueous environments, such as mixed lakes or wetlands, or soil environments that exchange with the atmosphere through diffusion. Open systems do assume that the solution is in constant contact with a large reservior or $CO_2$.
 
 
 
 # Scenario 2: Closed System
 
-```{r open v closed system figure, out.width = "75%", echo=FALSE, eval=TRUE}
+```{r open vs closed system figure, out.width = "75%", echo=FALSE, eval=TRUE}
 knitr::include_graphics("co2_closed_open_lab_161_2nd.png")
 ```
 
@@ -184,7 +182,10 @@ knitr::include_graphics("fractfactor_carbspeciesbyT_Zeebe.png") #Mook 1986, C is
 ### Question 5
 Q: Before we model an open system at equilibrium: What parameters will we need to fix and which should we let vary?
   A: 
-    
+    - Fixed... temperature, [DIC], $\delta_{DIC}$
+    - Variable... pH
+    - Note: this system does not have a pCO2 variable, but its a closed system that is not in contact with an atmosphere. There is a set concentration and isotopic value for DIC, but those quantities are finite. 
+
 ```{r closed system model}
 isotopes_closed <- tibble(
               # define temperature
@@ -264,8 +265,8 @@ p_4
 ```
 ### Question 6
 Q: What do you observe about how the isotopic values of the carboante species vary with pH? 
-  A:  
+  A: Now for a closed system at equilibrium, the isotopic composition of each species is dependent on pH. Each species is separated by a known fraction factor, but the $\delta^{13}C$ varies because the the concentration of each species changes with pH. The $\delta^{13}C_{DIC}$, however, is now constant because the (isotopic values * fraction) of each species must add back to the original $\delta^{13}C_{DIC}$ composition. 
   
 ### Question 7
 Q: What environment or natural setting does a closed system model well?
-  A:  
+  A: Environment that does not have exchange with atmosphere... parsel of water starting at ocean surface and then decending away from the surface so no more exchange with the atmosphere can occur. Others? caves? soil water? interior carbonate reaction within biogenically mediated carbonate precipitation. 
